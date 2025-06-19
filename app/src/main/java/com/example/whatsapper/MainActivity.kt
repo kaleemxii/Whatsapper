@@ -27,6 +27,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.whatsapper.ui.theme.AppTheme
 import com.example.whatsapper.utils.WhatsAppUtils
 
+@OptIn(ExperimentalMaterial3Api::class)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -218,6 +220,7 @@ fun WhatsapperApp() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CallHistoryItem(
     call: CallRecord,
