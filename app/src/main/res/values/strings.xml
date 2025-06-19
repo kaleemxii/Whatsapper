@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Whatsapper</string>
+    <string name="call_history">Call History</string>
+    <string name="enter_number">Enter Phone Number</string>
+    <string name="send_whatsapp">Send WhatsApp</string>
+    <string name="no_calls_found">No call history found</string>
+    <string name="permission_required">Permission required to access call history</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="invalid_number">Please enter a valid phone number</string>
+    <string name="whatsapp_not_installed">WhatsApp is not installed</string>
+</resources>
