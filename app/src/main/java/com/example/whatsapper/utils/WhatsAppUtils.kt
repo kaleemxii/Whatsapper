@@ -16,12 +16,12 @@ object WhatsAppUtils {
             return
         }
         
-        // Directly try to open web WhatsApp
+        // Directly try to open WhatsApp using API
         try {
-            val webIntent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("https://web.whatsapp.com/send?phone=$cleanNumber")
+            val apiIntent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("https://api.whatsapp.com/send?phone=$cleanNumber")
             }
-            context.startActivity(webIntent)
+            context.startActivity(apiIntent)
         } catch (e: Exception) {
             Toast.makeText(context, "Unable to open WhatsApp", Toast.LENGTH_SHORT).show()
         }
