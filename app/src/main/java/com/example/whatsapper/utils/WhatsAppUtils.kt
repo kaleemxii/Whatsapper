@@ -16,36 +16,14 @@ object WhatsAppUtils {
             return
         }
         
-        if (!isWhatsAppInstalled(context)) {
-            Toast.makeText(context, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
-            return
-        }
-        
+        // Directly try to open web WhatsApp
         try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("https://api.whatsapp.com/send?phone=$cleanNumber")
-                setPackage("com.whatsapp")
+            val webIntent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("https://web.whatsapp.com/send?phone=$cleanNumber")
             }
-            context.startActivity(intent)
+            context.startActivity(webIntent)
         } catch (e: Exception) {
-            // Fallback to web WhatsApp
-            try {
-                val webIntent = Intent(Intent.ACTION_VIEW).apply {
-                    data = Uri.parse("https://web.whatsapp.com/send?phone=$cleanNumber")
-                }
-                context.startActivity(webIntent)
-            } catch (e: Exception) {
-                Toast.makeText(context, "Unable to open WhatsApp", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-    
-    private fun isWhatsAppInstalled(context: Context): Boolean {
-        return try {
-            context.packageManager.getPackageInfo("com.whatsapp", 0)
-            true
-        } catch (e: PackageManager.NameNotFoundException) {
-            false
+            Toast.makeText(context, "Unable to open WhatsApp", Toast.LENGTH_SHORT).show()
         }
     }
     
