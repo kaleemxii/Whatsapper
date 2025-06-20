@@ -111,11 +111,26 @@ app/
 
 ## CI/CD
 
-The project includes GitHub Actions workflow that:
+The project includes automated GitHub Actions workflows:
+
+### Continuous Integration
 - Builds the project on every push and pull request
 - Runs unit tests
 - Generates debug and release APKs
 - Uploads build artifacts
+
+### Release Automation
+- Builds signed release APKs with proper keystore
+- Creates GitHub Releases automatically
+- Attaches signed APKs to releases
+- Supports both manual triggers and tag-based releases
+
+For detailed setup instructions, see [CI/CD Setup Guide](docs/CICD_SETUP.md).
+
+### Quick Release Setup
+1. Generate keystore: `./scripts/generate-keystore.sh`
+2. Add GitHub secrets (keystore, passwords)
+3. Trigger release via GitHub Actions or push a tag
 
 ## License
 

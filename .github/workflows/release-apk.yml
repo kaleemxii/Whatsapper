@@ -1,0 +1,135 @@
+name: Build and Release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for the release'
+        required: true
+        default: 'v1.0.0'
+      release_name:
+        description: 'Release name'
+        required: true
+        default: 'Release v1.0.0'
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Decode keystore
+      run: |
+        echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 -d > app/release-key.jks
+      if: ${{ secrets.RELEASE_KEYSTORE }}
+
+    - name: Build release APK
+      run: ./gradlew assembleRelease
+
+    - name: Sign APK
+      if: ${{ secrets.RELEASE_KEYSTORE }}
+      run: |
+        # Sign the APK using jarsigner
+        jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+          -keystore app/release-key.jks \
+          -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" \
+          -keypass "${{ secrets.RELEASE_KEY_PASSWORD }}" \
+          app/build/outputs/apk/release/app-release-unsigned.apk \
+          "${{ secrets.RELEASE_KEY_ALIAS }}"
+
+    - name: Get APK path and name
+      id: apk_info
+      run: |
+        # Find the APK file (could be signed or unsigned)
+        if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+          APK_PATH="app/build/outputs/apk/release/app-release.apk"
+        else
+          APK_PATH="app/build/outputs/apk/release/app-release-unsigned.apk"
+        fi
+        
+        APK_NAME=$(basename "$APK_PATH")
+        echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+        echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
+        
+        # Verify APK exists
+        if [ ! -f "$APK_PATH" ]; then
+          echo "Error: APK not found at $APK_PATH"
+          exit 1
+        fi
+        
+        echo "Found APK: $APK_PATH"
+
+    - name: Upload APK as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: signed-release-apk
+        path: ${{ steps.apk_info.outputs.apk_path }}
+
+    - name: Determine tag and release name
+      id: release_info
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "tag_name=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+          echo "release_name=${{ github.event.inputs.release_name }}" >> $GITHUB_OUTPUT
+        else
+          echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "release_name=Release ${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.release_info.outputs.tag_name }}
+        release_name: ${{ steps.release_info.outputs.release_name }}
+        body: |
+          ## What's Changed
+          
+          - Released signed APK for Android devices
+          - Requires Android 7.0 (API level 24) or higher
+          - Grant required permissions for call logs and contacts when prompted
+          
+          ## Installation
+          
+          1. Download the APK below
+          2. Install on your Android device
+          3. Grant the required permissions when prompted
+          
+          **Note**: You may need to enable "Install from unknown sources" in your device settings.
+        draft: false
+        prerelease: false
+
+    - name: Upload APK to Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.apk_info.outputs.apk_path }}
+        asset_name: ${{ steps.apk_info.outputs.apk_name }}
+        asset_content_type: application/vnd.android.package-archive
+
+    - name: Clean up keystore
+      if: always()
+      run: |
+        rm -f app/release-key.jks
