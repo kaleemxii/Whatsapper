@@ -93,6 +93,9 @@ class CallHistoryViewModel : ViewModel() {
                     val typeIndex = it.getColumnIndex(CallLog.Calls.TYPE)
                     val durationIndex = it.getColumnIndex(CallLog.Calls.DURATION)
                     
+                    // Use a map to track unique numbers and keep only the most recent call
+                    val uniqueCalls = mutableMapOf<String, CallRecord>()
+                    
                     while (it.moveToNext()) {
                         val number = it.getString(numberIndex) ?: ""
                         var contactName = it.getString(nameIndex)
@@ -108,10 +111,18 @@ class CallHistoryViewModel : ViewModel() {
                             contactName = getContactName(context, number)
                         }
                         
-                        // Keep contactName as null if no contact found - displayName will handle showing the number
+                        val callRecord = CallRecord(number, contactName, date, type, duration)
                         
-                        calls.add(CallRecord(number, contactName, date, type, duration))
+                        // Only keep this call if we haven't seen this number before, 
+                        // or if this call is more recent than the previous one for this number
+                        val existingCall = uniqueCalls[number]
+                        if (existingCall == null || date > existingCall.date) {
+                            uniqueCalls[number] = callRecord
+                        }
                     }
+                    
+                    // Convert to list and sort by date (most recent first)
+                    calls.addAll(uniqueCalls.values.sortedByDescending { it.date })
                 }
                 
                 _callHistory.value = calls
