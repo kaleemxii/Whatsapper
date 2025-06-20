@@ -108,6 +108,12 @@ class CallHistoryViewModel : ViewModel() {
                             contactName = getContactName(context, number)
                         }
                         
+                        // Set contact name to raw phone number if contacts permission is not present 
+                        // or phone number is not in contacts
+                        if (contactName == null) {
+                            contactName = number
+                        }
+                        
                         calls.add(CallRecord(number, contactName, date, type, duration))
                     }
                 }
