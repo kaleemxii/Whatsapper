@@ -106,6 +106,11 @@ class CallHistoryViewModel : ViewModel() {
                         // Skip entries with empty or invalid phone numbers
                         if (number.isEmpty()) continue
                         
+                        // Convert empty string contact name to null for proper displayName handling
+                        if (contactName?.isEmpty() == true) {
+                            contactName = null
+                        }
+                        
                         // If no cached name and we have contacts permission, try to get contact name
                         if (contactName == null && hasContactsPermission && number.isNotEmpty()) {
                             contactName = getContactName(context, number)
