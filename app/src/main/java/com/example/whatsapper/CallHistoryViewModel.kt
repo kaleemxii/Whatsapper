@@ -100,6 +100,9 @@ class CallHistoryViewModel : ViewModel() {
                         val type = it.getInt(typeIndex)
                         val duration = it.getLong(durationIndex)
                         
+                        // Skip entries with empty or invalid phone numbers
+                        if (number.isEmpty()) continue
+                        
                         // If no cached name and we have contacts permission, try to get contact name
                         if (contactName == null && hasContactsPermission && number.isNotEmpty()) {
                             contactName = getContactName(context, number)

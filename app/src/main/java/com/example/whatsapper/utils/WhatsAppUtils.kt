@@ -21,13 +21,35 @@ object WhatsAppUtils {
             return
         }
         
-        try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("https://api.whatsapp.com/send?phone=$cleanNumber")
-                setPackage("com.whatsapp")
+        // Try to open with WhatsApp packages in order of preference
+        val whatsappPackages = listOf(
+            "com.whatsapp",          // Regular WhatsApp (preferred)
+            "com.whatsapp.w4b"       // WhatsApp Business
+        )
+        
+        var intentLaunched = false
+        for (packageName in whatsappPackages) {
+            try {
+                // Check if this specific package is installed
+                context.packageManager.getPackageInfo(packageName, 0)
+                
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    data = Uri.parse("https://api.whatsapp.com/send?phone=$cleanNumber")
+                    setPackage(packageName)
+                }
+                context.startActivity(intent)
+                intentLaunched = true
+                break
+            } catch (e: PackageManager.NameNotFoundException) {
+                // This package is not installed, try the next one
+                continue
+            } catch (e: Exception) {
+                // Intent failed for this package, try the next one
+                continue
             }
-            context.startActivity(intent)
-        } catch (e: Exception) {
+        }
+        
+        if (!intentLaunched) {
             // Fallback to web WhatsApp
             try {
                 val webIntent = Intent(Intent.ACTION_VIEW).apply {
@@ -41,12 +63,20 @@ object WhatsAppUtils {
     }
     
     private fun isWhatsAppInstalled(context: Context): Boolean {
-        return try {
-            context.packageManager.getPackageInfo("com.whatsapp", 0)
-            true
-        } catch (e: PackageManager.NameNotFoundException) {
-            false
+        val whatsappPackages = listOf(
+            "com.whatsapp",          // Regular WhatsApp
+            "com.whatsapp.w4b"       // WhatsApp Business
+        )
+        
+        for (packageName in whatsappPackages) {
+            try {
+                context.packageManager.getPackageInfo(packageName, 0)
+                return true
+            } catch (e: PackageManager.NameNotFoundException) {
+                // Continue checking other packages
+            }
         }
+        return false
     }
     
     private fun cleanPhoneNumber(phoneNumber: String): String {
