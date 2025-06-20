@@ -93,28 +93,36 @@ class CallHistoryViewModel : ViewModel() {
                     val typeIndex = it.getColumnIndex(CallLog.Calls.TYPE)
                     val durationIndex = it.getColumnIndex(CallLog.Calls.DURATION)
                     
+                    // Use a hashset to track unique numbers
+                    val seenNumbers = mutableSetOf<String>()
+                    
                     while (it.moveToNext()) {
                         val number = it.getString(numberIndex) ?: ""
+                        
+                        // Skip entries with empty or invalid phone numbers
+                        if (number.isEmpty()) continue
+                        
+                        // Skip if number is already seen
+                        if (seenNumbers.contains(number)) continue
+                        
                         var contactName = it.getString(nameIndex)
                         val date = it.getLong(dateIndex)
                         val type = it.getInt(typeIndex)
                         val duration = it.getLong(durationIndex)
                         
-                        // Skip entries with empty or invalid phone numbers
-                        if (number.isEmpty()) continue
+                        // Convert empty string contact name to null for proper displayName handling
+                        if (contactName?.isEmpty() == true) {
+                            contactName = null
+                        }
                         
                         // If no cached name and we have contacts permission, try to get contact name
                         if (contactName == null && hasContactsPermission && number.isNotEmpty()) {
                             contactName = getContactName(context, number)
                         }
                         
-                        // Set contact name to raw phone number if contacts permission is not present 
-                        // or phone number is not in contacts
-                        if (contactName == null) {
-                            contactName = number
-                        }
-                        
-                        calls.add(CallRecord(number, contactName, date, type, duration))
+                        val callRecord = CallRecord(number, contactName, date, type, duration)
+                        calls.add(callRecord)
+                        seenNumbers.add(number)
                     }
                 }
                 
