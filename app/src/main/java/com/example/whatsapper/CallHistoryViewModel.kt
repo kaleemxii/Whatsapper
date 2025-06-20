@@ -93,18 +93,22 @@ class CallHistoryViewModel : ViewModel() {
                     val typeIndex = it.getColumnIndex(CallLog.Calls.TYPE)
                     val durationIndex = it.getColumnIndex(CallLog.Calls.DURATION)
                     
-                    // Use a map to track unique numbers and keep only the most recent call
-                    val uniqueCalls = mutableMapOf<String, CallRecord>()
+                    // Use a hashset to track unique numbers
+                    val seenNumbers = mutableSetOf<String>()
                     
                     while (it.moveToNext()) {
                         val number = it.getString(numberIndex) ?: ""
+                        
+                        // Skip entries with empty or invalid phone numbers
+                        if (number.isEmpty()) continue
+                        
+                        // Skip if number is already seen
+                        if (seenNumbers.contains(number)) continue
+                        
                         var contactName = it.getString(nameIndex)
                         val date = it.getLong(dateIndex)
                         val type = it.getInt(typeIndex)
                         val duration = it.getLong(durationIndex)
-                        
-                        // Skip entries with empty or invalid phone numbers
-                        if (number.isEmpty()) continue
                         
                         // Convert empty string contact name to null for proper displayName handling
                         if (contactName?.isEmpty() == true) {
@@ -117,17 +121,9 @@ class CallHistoryViewModel : ViewModel() {
                         }
                         
                         val callRecord = CallRecord(number, contactName, date, type, duration)
-                        
-                        // Only keep this call if we haven't seen this number before, 
-                        // or if this call is more recent than the previous one for this number
-                        val existingCall = uniqueCalls[number]
-                        if (existingCall == null || date > existingCall.date) {
-                            uniqueCalls[number] = callRecord
-                        }
+                        calls.add(callRecord)
+                        seenNumbers.add(number)
                     }
-                    
-                    // Convert to list and sort by date (most recent first)
-                    calls.addAll(uniqueCalls.values.sortedByDescending { it.date })
                 }
                 
                 _callHistory.value = calls
