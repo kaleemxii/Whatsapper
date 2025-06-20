@@ -41,20 +41,41 @@ jobs:
         echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 -d > app/release-key.jks
       if: ${{ secrets.RELEASE_KEYSTORE }}
 
-    - name: Build signed release APK
-      env:
-        RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
-        RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-        RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+    - name: Build release APK
       run: ./gradlew assembleRelease
+
+    - name: Sign APK
+      if: ${{ secrets.RELEASE_KEYSTORE }}
+      run: |
+        # Sign the APK using jarsigner
+        jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+          -keystore app/release-key.jks \
+          -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" \
+          -keypass "${{ secrets.RELEASE_KEY_PASSWORD }}" \
+          app/build/outputs/apk/release/app-release-unsigned.apk \
+          "${{ secrets.RELEASE_KEY_ALIAS }}"
 
     - name: Get APK path and name
       id: apk_info
       run: |
-        APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+        # Find the APK file (could be signed or unsigned)
+        if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+          APK_PATH="app/build/outputs/apk/release/app-release.apk"
+        else
+          APK_PATH="app/build/outputs/apk/release/app-release-unsigned.apk"
+        fi
+        
         APK_NAME=$(basename "$APK_PATH")
         echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
         echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
+        
+        # Verify APK exists
+        if [ ! -f "$APK_PATH" ]; then
+          echo "Error: APK not found at $APK_PATH"
+          exit 1
+        fi
+        
+        echo "Found APK: $APK_PATH"
 
     - name: Upload APK as artifact
       uses: actions/upload-artifact@v4

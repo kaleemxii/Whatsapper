@@ -78,9 +78,10 @@ git push origin v1.0.0
 The release workflow (`release-apk.yml`) includes:
 
 - **Secure keystore handling**: Decodes keystore from secrets and cleans up after build
-- **Signed APK generation**: Builds a properly signed release APK
-- **Automatic releases**: Creates GitHub releases with the APK attached
-- **Artifact upload**: Saves the APK as a build artifact
+- **APK building**: Builds unsigned release APK using Gradle
+- **APK signing**: Signs APK using jarsigner with proper algorithms
+- **Automatic releases**: Creates GitHub releases with the signed APK attached
+- **Artifact upload**: Saves the signed APK as a build artifact
 - **Clean build environment**: Uses latest Ubuntu with Java 17 and Android SDK
 
 ## Security Best Practices
@@ -131,19 +132,24 @@ If you need to update your keystore:
 To test release builds locally:
 
 ```bash
-# Set environment variables
-export RELEASE_KEYSTORE_PASSWORD="your_keystore_password"
-export RELEASE_KEY_ALIAS="release-key"
-export RELEASE_KEY_PASSWORD="your_key_password"
-
-# Copy keystore to app directory
-cp release-key.jks app/
-
-# Build release APK
+# Build unsigned release APK
 ./gradlew assembleRelease
 
-# Check the signed APK
-ls -la app/build/outputs/apk/release/
+# The unsigned APK will be at:
+ls -la app/build/outputs/apk/release/app-release-unsigned.apk
+
+# To test signing manually (for verification):
+# 1. Create a test keystore
+keytool -genkey -v -keystore test-keystore.jks -alias test-key -keyalg RSA -keysize 2048 -validity 365
+
+# 2. Sign the APK
+jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+  -keystore test-keystore.jks \
+  app/build/outputs/apk/release/app-release-unsigned.apk \
+  test-key
+
+# 3. Verify signing
+jarsigner -verify app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
 ## Support
