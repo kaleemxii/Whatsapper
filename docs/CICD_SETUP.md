@@ -79,10 +79,12 @@ The release workflow (`release-apk.yml`) includes:
 
 - **Secure keystore handling**: Decodes keystore from secrets and cleans up after build
 - **APK building**: Builds unsigned release APK using Gradle
-- **APK signing**: Signs APK using jarsigner with proper algorithms
-- **Automatic releases**: Creates GitHub releases with the signed APK attached
-- **Artifact upload**: Saves the signed APK as a build artifact
+- **APK signing**: Signs APK using jarsigner with proper algorithms and verifies signature
+- **Automatic releases**: Creates GitHub releases with the signed APK attached using modern actions
+- **Artifact upload**: Saves the signed APK as a build artifact with 30-day retention
 - **Clean build environment**: Uses latest Ubuntu with Java 17 and Android SDK
+- **Enhanced debugging**: Provides detailed output for troubleshooting APK and release issues
+- **Proper permissions**: Includes necessary GitHub Actions permissions for release creation
 
 ## Security Best Practices
 
@@ -116,8 +118,19 @@ The release workflow (`release-apk.yml`) includes:
 
 ### No releases created
 - Check that you have proper permissions to create releases
-- Verify the `GITHUB_TOKEN` has the necessary permissions
+- The workflow now includes `permissions: contents: write` which should resolve most permission issues
 - Ensure you're not creating duplicate tags
+- If using a fork, you may need to use a Personal Access Token (PAT) instead of `GITHUB_TOKEN`
+
+### "Resource not accessible by integration" error
+- This error was fixed by updating to modern GitHub Actions (`softprops/action-gh-release@v1`)
+- The workflow now includes proper permissions (`contents: write`)
+- If the error persists, check that the repository allows Actions to create releases
+
+### APK not found errors
+- The workflow now includes enhanced debugging output to show all files in the release directory
+- After signing, the APK is renamed from `app-release-unsigned.apk` to `app-release.apk`
+- Signature verification is performed to ensure the APK is properly signed
 
 ## Updating Keystore
 

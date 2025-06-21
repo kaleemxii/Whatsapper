@@ -18,6 +18,9 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
     
     steps:
     - name: Checkout code
@@ -56,30 +59,51 @@ jobs:
     - name: Get APK path and name
       id: apk_info
       run: |
-        # Find the APK file (could be signed or unsigned)
-        if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+        # Debug: List all APK files in the release directory
+        echo "=== APK files in release directory ==="
+        ls -la app/build/outputs/apk/release/
+        echo "================================"
+        
+        # After jarsigner, the APK remains as app-release-unsigned.apk
+        # We can optionally rename it to app-release.apk for clarity
+        if [ -f "app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
+          # Rename the signed APK for clarity
+          mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/app-release.apk
           APK_PATH="app/build/outputs/apk/release/app-release.apk"
+          echo "Renamed signed APK to app-release.apk"
         else
-          APK_PATH="app/build/outputs/apk/release/app-release-unsigned.apk"
+          echo "Error: Signed APK not found at expected location"
+          echo "Available files:"
+          find app/build/outputs -name "*.apk" -ls
+          exit 1
         fi
         
         APK_NAME=$(basename "$APK_PATH")
         echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
         echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
         
-        # Verify APK exists
+        # Verify APK exists and is properly signed
         if [ ! -f "$APK_PATH" ]; then
           echo "Error: APK not found at $APK_PATH"
           exit 1
         fi
         
-        echo "Found APK: $APK_PATH"
+        # Verify the APK is signed
+        jarsigner -verify "$APK_PATH"
+        if [ $? -eq 0 ]; then
+          echo "✅ APK is properly signed"
+        else
+          echo "⚠️ APK signature verification failed"
+        fi
+        
+        echo "Found APK: $APK_PATH ($(du -h "$APK_PATH" | cut -f1))"
 
     - name: Upload APK as artifact
       uses: actions/upload-artifact@v4
       with:
         name: signed-release-apk
         path: ${{ steps.apk_info.outputs.apk_path }}
+        retention-days: 30
 
     - name: Determine tag and release name
       id: release_info
@@ -93,13 +117,10 @@ jobs:
         fi
 
     - name: Create GitHub Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.release_info.outputs.tag_name }}
-        release_name: ${{ steps.release_info.outputs.release_name }}
+        name: ${{ steps.release_info.outputs.release_name }}
         body: |
           ## What's Changed
           
@@ -114,18 +135,9 @@ jobs:
           3. Grant the required permissions when prompted
           
           **Note**: You may need to enable "Install from unknown sources" in your device settings.
+        files: ${{ steps.apk_info.outputs.apk_path }}
         draft: false
         prerelease: false
-
-    - name: Upload APK to Release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.apk_info.outputs.apk_path }}
-        asset_name: ${{ steps.apk_info.outputs.apk_name }}
-        asset_content_type: application/vnd.android.package-archive
 
     - name: Clean up keystore
       if: always()
